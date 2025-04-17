@@ -1,165 +1,49 @@
-import { createStore } from 'vuex'
-import api from '../api'
+import Vue from 'vue'
+import Vuex from 'vuex'
 
-export default createStore({
+Vue.use(Vuex)
+
+export default new Vuex.Store({
   state: {
-    attackLogs: [],
-    defenseConfig: {
-      enableInputValidation: true,
-      enableOutputEncoding: true,
-      enableCsp: true,
-      cspPolicy: "default-src 'self'; script-src 'self'"
-    },
-    testResults: null,
-    isLoading: false
+    user: JSON.parse(localStorage.getItem('user')) || null,
+    token: localStorage.getItem('token') || null
   },
   getters: {
-    attackLogsCount(state) {
-      return state.attackLogs.length
-    },
-    getDefenseConfig(state) {
-      return state.defenseConfig
-    }
+    isAuthenticated: state => !!state.user,
+    isPatient: state => state.user && state.user.role === 1,
+    isDoctor: state => state.user && state.user.role === 2,
+    isAdmin: state => state.user && state.user.role === 3,
+    currentUser: state => state.user
   },
   mutations: {
-    SET_ATTACK_LOGS(state, logs) {
-      state.attackLogs = logs
+    SET_USER(state, user) {
+      state.user = user
+      if (user) {
+        localStorage.setItem('user', JSON.stringify(user))
+      } else {
+        localStorage.removeItem('user')
+      }
     },
-    ADD_ATTACK_LOG(state, log) {
-      state.attackLogs.unshift(log)
-    },
-    SET_DEFENSE_CONFIG(state, config) {
-      state.defenseConfig = config
-    },
-    SET_TEST_RESULTS(state, results) {
-      state.testResults = results
-    },
-    SET_LOADING(state, status) {
-      state.isLoading = status
+    SET_TOKEN(state, token) {
+      state.token = token
+      if (token) {
+        localStorage.setItem('token', token)
+      } else {
+        localStorage.removeItem('token')
+      }
     }
   },
   actions: {
-    async fetchAttackLogs({ commit }) {
-      commit('SET_LOADING', true)
-      try {
-        const response = await api.getAttackLogs()
-        commit('SET_ATTACK_LOGS', response.data)
-      } catch (error) {
-        console.error('Failed to fetch attack logs:', error)
-      } finally {
-        commit('SET_LOADING', false)
-      }
+    login({ commit }, { user, token }) {
+      commit('SET_USER', user)
+      commit('SET_TOKEN', token)
     },
-    async saveDefenseConfig({ commit }, config) {
-      commit('SET_LOADING', true)
-      try {
-        const response = await api.updateDefenseConfig(config)
-        commit('SET_DEFENSE_CONFIG', response.data)
-        return true
-      } catch (error) {
-        console.error('Failed to save defense config:', error)
-        return false
-      } finally {
-        commit('SET_LOADING', false)
-      }
+    logout({ commit }) {
+      commit('SET_USER', null)
+      commit('SET_TOKEN', null)
     },
-    async runXssTest({ commit, dispatch }, payload) {
-      commit('SET_LOADING', true)
-      try {
-        const response = await api.runXssTest(payload)
-        commit('SET_TEST_RESULTS', response.data)
-        
-        // 测试后自动刷新攻击日志和统计
-        await dispatch('fetchAttackLogs')
-        
-        return response.data
-      } catch (error) {
-        console.error('Failed to run XSS test:', error)
-        return null
-      } finally {
-        commit('SET_LOADING', false)
-      }
-    },
-    async clearAttackLogs({ commit }) {
-      commit('SET_LOADING', true)
-      try {
-        await api.clearAttackLogs()
-        commit('SET_ATTACK_LOGS', [])
-        return true
-      } catch (error) {
-        console.error('Failed to clear attack logs:', error)
-        return false
-      } finally {
-        commit('SET_LOADING', false)
-      }
-    },
-    
-    async fetchLatestAttackLog({ commit }, count = 1) {
-      commit('SET_LOADING', true)
-      try {
-        const response = await api.getLatestAttackLog(count)
-        if (response.data && response.data.length > 0) {
-          return response.data[0]
-        }
-        return null
-      } catch (error) {
-        console.error('Failed to fetch latest attack log:', error)
-        return null
-      } finally {
-        commit('SET_LOADING', false)
-      }
-    },
-    
-    async fetchAttackLogById({ commit }, id) {
-      commit('SET_LOADING', true)
-      try {
-        const response = await api.getAttackLogById(id)
-        return response.data
-      } catch (error) {
-        console.error(`Failed to fetch attack log with ID ${id}:`, error)
-        return null
-      } finally {
-        commit('SET_LOADING', false)
-      }
-    },
-    
-    async getDatabaseInfo({ commit }) {
-      commit('SET_LOADING', true)
-      try {
-        const response = await api.getDatabaseInfo()
-        return response.data
-      } catch (error) {
-        console.error('Failed to get database info:', error)
-        return null
-      } finally {
-        commit('SET_LOADING', false)
-      }
-    },
-    
-    async getSystemInfo({ commit }) {
-      commit('SET_LOADING', true)
-      try {
-        const response = await api.getSystemInfo()
-        return response.data
-      } catch (error) {
-        console.error('Failed to get system info:', error)
-        return null
-      } finally {
-        commit('SET_LOADING', false)
-      }
-    },
-    
-    async fixDatabase({ commit }) {
-      commit('SET_LOADING', true)
-      try {
-        const response = await api.fixDatabase()
-        return response.data
-      } catch (error) {
-        console.error('Failed to fix database:', error)
-        throw error
-      } finally {
-        commit('SET_LOADING', false)
-      }
+    updateUser({ commit }, user) {
+      commit('SET_USER', user)
     }
   }
-}) 
+})
